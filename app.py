@@ -1,6 +1,6 @@
 # ==========================================
 # FLIPKART REVIEW ANALYZER - STREAMLIT APP
-# (Corrected Version)
+# (Real Scraping Version)
 # ==========================================
 import streamlit as st
 import joblib
@@ -12,27 +12,33 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.stem import SnowballStemmer
 
+# Scraping Libraries
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+from bs4 import BeautifulSoup
+
 # ==========================================
 # 1. SETUP & MODEL LOADING
 # ==========================================
 
 # Set up NLTK components
-# We can use st.cache_data for this to avoid re-downloading
 @st.cache_data
 def load_nltk_data():
     nltk.download('stopwords')
-    nltk.download('punkt') # Added for safety, though not explicitly in clean()
-    nltk.download('wordnet') # Added for safety, though not explicitly in clean()
+    nltk.download('punkt')
+    nltk.download('wordnet')
     return set(stopwords.words('english')), SnowballStemmer("english")
 
 stopword, stemmer = load_nltk_data()
-
 
 @st.cache_resource
 def load_artifacts():
     """
     Load the saved model, vectorizer, and label encoder.
-    The @st.cache_resource decorator ensures this runs only once.
     """
     try:
         model = joblib.load('sentiment_model.pkl')
@@ -57,7 +63,6 @@ model, vectorizer, le = load_artifacts()
 def clean(text):
     """
     The exact same cleaning pipeline from your notebook.
-    Using @st.cache_data to speed up processing of repeated reviews.
     """
     text = str(text).lower()
     text = re.sub('\[.*?\]', '', text)
@@ -73,37 +78,88 @@ def clean(text):
     return text
 
 # ==========================================
-# 3. WEB SCRAPING FUNCTION (PLACEHOLDER)
+# 3. REAL WEB SCRAPING FUNCTION (Using Selenium)
 # ==========================================
 
-def scrape_flipkart_reviews(url):
+@st.cache_data(show_spinner=False) # Cache the scraping result for a given URL
+def get_real_reviews_from_flipkart(url, max_reviews=50):
     """
-    *** THIS IS A PLACEHOLDER SIMULATION ***
-    Real web scraping is complex. This function simulates
-    fetching reviews to let us test the ML pipeline.
+    Uses Selenium to open a real browser, find the 'All Reviews'
+    page, and scrape the text.
     """
-    with st.spinner(f"Scraping reviews from {url}... (This is a 3-second simulation)"):
-        time.sleep(3)
     
-    # Return a list of dummy reviews to test the model
-    # I've added more varied reviews to help test the model outputs
-    return [
-        "The product is absolutely amazing! Best purchase of the year.",
-        "I love it. The quality is top-notch and it was delivered fast.",
-        "Worst product I have ever bought. It broke after just one day.",
-        "This is a complete waste of money. Do not recommend.",
-        "It's an okay product. Not great, not terrible. Just average.",
-        "Good value for the price. Satisfied with my purchase.",
-        "Terrible customer service and the product was defective.",
-        "Five stars! Will definitely buy from this seller again.",
-        "The item I received was the wrong color. Very disappointed.",
-        "It's decent. Gets the job done.",
-        "Truly fantastic. I am very happy with this.",
-        "Bad. Just bad. I want my money back.",
-        "So so. I expected more for the price.",
-        "Null", # To test cleaning
-        "" # To test cleaning
-    ]
+    # --- *** CRITICAL: UPDATE THESE SELECTORS *** ---
+    # Flipkart changes its HTML classes often. These WILL break.
+    # You must find the new ones using Chrome's "Inspect" tool.
+    ALL_REVIEWS_LINK_XPATH = "//a[contains(., 'All Reviews') or contains(., 'All') and contains(., 'reviews')]"
+    REVIEW_TEXT_CLASS = "ZmyHeo" # As of late 2025, this class holds the review text.
+    # ---
+    
+    reviews = []
+    
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless") # Run in the background
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+
+    driver = None
+    try:
+        with st.spinner(f"Starting browser and navigating to product page..."):
+            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+            driver.get(url)
+            time.sleep(3) # Wait for page to load
+
+        # Find and click the "All Reviews" link
+        with st.spinner("Finding 'All Reviews' link..."):
+            all_reviews_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, ALL_REVIEWS_LINK_XPATH))
+            )
+            driver.execute_script("arguments[0].click();", all_reviews_button)
+            time.sleep(3) # Wait for review page to load
+
+        with st.spinner(f"Scraping up to {max_reviews} reviews... (This may take a moment)"):
+            last_height = driver.execute_script("return document.body.scrollHeight")
+            
+            while len(reviews) < max_reviews:
+                # Parse the currently loaded HTML
+                soup = BeautifulSoup(driver.page_source, "lxml")
+                review_elements = soup.find_all("div", class_=REVIEW_TEXT_CLASS)
+                
+                new_reviews_found = 0
+                for elem in review_elements:
+                    review_text = elem.get_text(strip=True)
+                    if review_text not in reviews:
+                        reviews.append(review_text)
+                        new_reviews_found += 1
+                        if len(reviews) >= max_reviews:
+                            break
+                
+                # If we're at the max or no new reviews were found on this scroll, stop
+                if len(reviews) >= max_reviews or new_reviews_found == 0:
+                    break
+                
+                # Scroll down to load more
+                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(2) # Wait for new reviews to load
+                
+                # Check if we're at the bottom of the page
+                new_height = driver.execute_script("return document.body.scrollHeight")
+                if new_height == last_height:
+                    st.warning(f"Reached end of reviews. Found {len(reviews)} total.")
+                    break
+                last_height = new_height
+
+    except Exception as e:
+        st.error(f"Scraping Error: {e}")
+        st.error("This often happens if Flipkart changed its HTML or blocked the request. The scraper's selectors may need to be updated.")
+        return [] # Return empty list on failure
+    finally:
+        if driver:
+            driver.quit() # Always close the browser
+
+    return reviews[:max_reviews]
+
 
 # ==========================================
 # 4. STREAMLIT UI & MAIN LOGIC
@@ -113,7 +169,6 @@ st.set_page_config(page_title="Flipkart Review Analyzer", page_icon="🛍️", l
 st.title("🛍️ Flipkart Product Review Analyzer")
 st.markdown("Enter a Flipkart product URL to analyze customer sentiment and see if most consumers are satisfied.")
 
-# Only proceed if models were loaded successfully
 if model and vectorizer and le:
     url = st.text_input("Enter a Flipkart Product URL:", placeholder="https://www.flipkart.com/...")
 
@@ -122,29 +177,24 @@ if model and vectorizer and le:
             st.error("Please enter a valid Flipkart URL.")
         else:
             # --- 1. Scrape ---
-            reviews_list = scrape_flipkart_reviews(url)
+            reviews_list = get_real_reviews_from_flipkart(url, max_reviews=50)
             
             if not reviews_list:
-                st.warning("Could not find any reviews for this product.")
+                st.warning("Could not find any reviews for this product. (Or scraping failed)")
             else:
                 # --- 2. Process & Predict ---
-                st.subheader(f"Analyzing {len(reviews_list)} reviews...")
+                st.subheader(f"Analyzing {len(reviews_list)} real reviews...")
                 predictions = []
-                
-                # *** BUG FIX #2: Create a list to hold reviews that are *not* empty after cleaning ***
                 valid_reviews_for_df = [] 
                 
                 with st.spinner("Running sentiment analysis model..."):
                     for review_text in reviews_list:
                         cleaned_review = clean(review_text)
-                        
-                        # Only predict if cleaning doesn't result in an empty string
                         if cleaned_review:
                             vectorized_review = vectorizer.transform([cleaned_review])
                             prediction_int = model.predict(vectorized_review)[0]
                             sentiment = le.inverse_transform([prediction_int])[0]
                             predictions.append(sentiment)
-                            # Add the *original* text to our valid list
                             valid_reviews_for_df.append(review_text) 
                 
                 if not predictions:
@@ -152,15 +202,7 @@ if model and vectorizer and le:
                 else:
                     # --- 3. Aggregate & Display Results ---
                     sentiment_counts = pd.Series(predictions).value_counts()
-                    
-                    # Define our categories and their colors
-                    categories_colors = {
-                        "Positive": "#2ecc71",
-                        "Negative": "#e74c3c",
-                        "Neutral": "#95a5a6"
-                    }
-                    
-                    # Ensure all categories exist, even if count is 0
+                    categories_colors = {"Positive": "#2ecc71", "Negative": "#e74c3c", "Neutral": "#95a5a6"}
                     for category in categories_colors.keys():
                         if category not in sentiment_counts:
                             sentiment_counts[category] = 0
@@ -182,38 +224,22 @@ if model and vectorizer and le:
 
                     # --- Charts ---
                     st.subheader("Sentiment Breakdown")
-
-                    # === *** ERROR FIX #1 IS HERE *** ===
-                    
-                    # 1. Create a new Series to guarantee the order
                     chart_data = pd.Series({
                         "Positive": sentiment_counts["Positive"],
                         "Negative": sentiment_counts["Negative"],
                         "Neutral": sentiment_counts["Neutral"]
                     })
-                    
-                    # 2. Convert to a DataFrame and Transpose (T) it
-                    # This makes "Positive", "Negative", "Neutral" the COLUMNS
                     chart_df = chart_data.to_frame().T
-                    
-                    # 3. Get the colors in the *exact* order of the columns
                     chart_colors = [categories_colors[col] for col in chart_df.columns]
-
-                    # 4. Plot the DataFrame. Now 3 columns == 3 colors.
                     st.bar_chart(chart_df, color=chart_colors)
-                    # === *** END OF FIX #1 *** ===
 
-                    # --- Show a sample of reviews ---
-                    st.subheader("Sampled Reviews (from simulation)")
-                    
-                    # *** BUG FIX #2 (Continued): Use the 'valid_reviews_for_df' list ***
-                    # This ensures both lists have the same length
+                    # --- Show the REAL reviews ---
+                    st.subheader(f"Scraped Reviews (Analyzed {len(predictions)} of {len(reviews_list)})")
                     sample_df = pd.DataFrame({
-                        'Review Text': valid_reviews_for_df,
+                        'Scraped Review Text': valid_reviews_for_df,
                         'Predicted Sentiment': predictions
                     })
-                    st.dataframe(sample_df, use_container_width=True)
+                    st.dataframe(sample_df, use_container_width=True, height=300)
 
-    st.info("**Disclaimer:** The review 'scraping' is currently a simulation. This demo uses pre-programmed reviews to show the complete ML pipeline in action.")
 else:
     st.stop()
