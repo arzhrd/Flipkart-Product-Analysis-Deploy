@@ -1,5 +1,6 @@
 # ==========================================
 # FLIPKART REVIEW ANALYZER - STREAMLIT APP
+# (Corrected Version)
 # ==========================================
 import streamlit as st
 import joblib
@@ -16,9 +17,16 @@ from nltk.stem import SnowballStemmer
 # ==========================================
 
 # Set up NLTK components
-nltk.download('stopwords')
-stemmer = SnowballStemmer("english")
-stopword = set(stopwords.words('english'))
+# We can use st.cache_data for this to avoid re-downloading
+@st.cache_data
+def load_nltk_data():
+    nltk.download('stopwords')
+    nltk.download('punkt') # Added for safety, though not explicitly in clean()
+    nltk.download('wordnet') # Added for safety, though not explicitly in clean()
+    return set(stopwords.words('english')), SnowballStemmer("english")
+
+stopword, stemmer = load_nltk_data()
+
 
 @st.cache_resource
 def load_artifacts():
@@ -78,6 +86,7 @@ def scrape_flipkart_reviews(url):
         time.sleep(3)
     
     # Return a list of dummy reviews to test the model
+    # I've added more varied reviews to help test the model outputs
     return [
         "The product is absolutely amazing! Best purchase of the year.",
         "I love it. The quality is top-notch and it was delivered fast.",
@@ -88,7 +97,12 @@ def scrape_flipkart_reviews(url):
         "Terrible customer service and the product was defective.",
         "Five stars! Will definitely buy from this seller again.",
         "The item I received was the wrong color. Very disappointed.",
-        "It's decent. Gets the job done."
+        "It's decent. Gets the job done.",
+        "Truly fantastic. I am very happy with this.",
+        "Bad. Just bad. I want my money back.",
+        "So so. I expected more for the price.",
+        "Null", # To test cleaning
+        "" # To test cleaning
     ]
 
 # ==========================================
@@ -116,6 +130,10 @@ if model and vectorizer and le:
                 # --- 2. Process & Predict ---
                 st.subheader(f"Analyzing {len(reviews_list)} reviews...")
                 predictions = []
+                
+                # *** BUG FIX #2: Create a list to hold reviews that are *not* empty after cleaning ***
+                valid_reviews_for_df = [] 
+                
                 with st.spinner("Running sentiment analysis model..."):
                     for review_text in reviews_list:
                         cleaned_review = clean(review_text)
@@ -126,6 +144,8 @@ if model and vectorizer and le:
                             prediction_int = model.predict(vectorized_review)[0]
                             sentiment = le.inverse_transform([prediction_int])[0]
                             predictions.append(sentiment)
+                            # Add the *original* text to our valid list
+                            valid_reviews_for_df.append(review_text) 
                 
                 if not predictions:
                     st.warning("After cleaning, no valid review text was found to analyze.")
@@ -133,10 +153,17 @@ if model and vectorizer and le:
                     # --- 3. Aggregate & Display Results ---
                     sentiment_counts = pd.Series(predictions).value_counts()
                     
-                    # Ensure all categories exist for the chart
-                    if "Positive" not in sentiment_counts: sentiment_counts["Positive"] = 0
-                    if "Negative" not in sentiment_counts: sentiment_counts["Negative"] = 0
-                    if "Neutral" not in sentiment_counts: sentiment_counts["Neutral"] = 0
+                    # Define our categories and their colors
+                    categories_colors = {
+                        "Positive": "#2ecc71",
+                        "Negative": "#e74c3c",
+                        "Neutral": "#95a5a6"
+                    }
+                    
+                    # Ensure all categories exist, even if count is 0
+                    for category in categories_colors.keys():
+                        if category not in sentiment_counts:
+                            sentiment_counts[category] = 0
                     
                     # --- FINAL VERDICT ---
                     st.subheader("Final Verdict")
@@ -155,16 +182,38 @@ if model and vectorizer and le:
 
                     # --- Charts ---
                     st.subheader("Sentiment Breakdown")
-                    st.bar_chart(sentiment_counts, color=["#2ecc71", "#e74c3c", "#95a5a6"]) # Green, Red, Gray
+
+                    # === *** ERROR FIX #1 IS HERE *** ===
+                    
+                    # 1. Create a new Series to guarantee the order
+                    chart_data = pd.Series({
+                        "Positive": sentiment_counts["Positive"],
+                        "Negative": sentiment_counts["Negative"],
+                        "Neutral": sentiment_counts["Neutral"]
+                    })
+                    
+                    # 2. Convert to a DataFrame and Transpose (T) it
+                    # This makes "Positive", "Negative", "Neutral" the COLUMNS
+                    chart_df = chart_data.to_frame().T
+                    
+                    # 3. Get the colors in the *exact* order of the columns
+                    chart_colors = [categories_colors[col] for col in chart_df.columns]
+
+                    # 4. Plot the DataFrame. Now 3 columns == 3 colors.
+                    st.bar_chart(chart_df, color=chart_colors)
+                    # === *** END OF FIX #1 *** ===
 
                     # --- Show a sample of reviews ---
                     st.subheader("Sampled Reviews (from simulation)")
+                    
+                    # *** BUG FIX #2 (Continued): Use the 'valid_reviews_for_df' list ***
+                    # This ensures both lists have the same length
                     sample_df = pd.DataFrame({
-                        'Review Text': reviews_list,
+                        'Review Text': valid_reviews_for_df,
                         'Predicted Sentiment': predictions
                     })
-                    st.dataframe(sample_df)
+                    st.dataframe(sample_df, use_container_width=True)
 
-    st.info("**Disclaimer:** The review 'scraping' is currently a simulation. This demo uses 10 pre-programmed reviews to show the complete ML pipeline in action.")
+    st.info("**Disclaimer:** The review 'scraping' is currently a simulation. This demo uses pre-programmed reviews to show the complete ML pipeline in action.")
 else:
     st.stop()
