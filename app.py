@@ -1,6 +1,6 @@
 # ==========================================
 # CUSTOMER SENTIMENT ANALYZER - STREAMLIT APP
-# (Manual Text Input Version)
+# (Flipkart Theme Version)
 # ==========================================
 import streamlit as st
 import joblib
@@ -12,7 +12,7 @@ from nltk.corpus import stopwords
 from nltk.stem import SnowballStemmer
 
 # ==========================================
-# 1. SETUP & MODEL LOADING
+# 1. SETUP & MODEL LOADING (No Change)
 # ==========================================
 
 # Set up NLTK components
@@ -30,7 +30,6 @@ stopword, stemmer = load_nltk_data()
 def load_artifacts():
     """
     Load the saved model, vectorizer, and label encoder.
-    The @st.cache_resource decorator ensures this runs only once.
     """
     try:
         model = joblib.load('sentiment_model.pkl')
@@ -48,14 +47,13 @@ def load_artifacts():
 model, vectorizer, le = load_artifacts()
 
 # ==========================================
-# 2. PREPROCESSING FUNCTION
+# 2. PREPROCESSING FUNCTION (No Change)
 # ==========================================
 
 @st.cache_data
 def clean(text):
     """
     The exact same cleaning pipeline from your notebook.
-    Using @st.cache_data to speed up processing of repeated reviews.
     """
     text = str(text).lower()
     text = re.sub('\[.*?\]', '', text)
@@ -71,12 +69,75 @@ def clean(text):
     return text
 
 # ==========================================
-# 3. STREAMLIT UI & MAIN LOGIC
+# 3. STREAMLIT UI & CUSTOM FLIPKART STYLING
 # ==========================================
 
-st.set_page_config(page_title="Customer Sentiment Analyzer", page_icon="🙂", layout="wide")
-st.title("🛍️ Customer Sentiment Analyzer")
+st.set_page_config(page_title="Flipkart Sentiment Analyzer", page_icon="🛒", layout="wide")
+
+# --- NEW STYLING CODE ---
+# We'll use Flipkart's brand colors and font
+FLIPKART_BLUE = "#2874f0"
+FLIPKART_BACKGROUND = "#f1f3f6"
+FLIPKART_TEXT = "#212121"
+
+st.markdown(f"""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+html, body, [class*="st-"] {{
+    font-family: 'Roboto', sans-serif;
+}}
+
+/* Main app background */
+.stApp {{
+    background-color: {FLIPKART_BACKGROUND};
+}}
+
+/* Main title */
+h1 {{
+    color: {FLIPKART_BLUE};
+    font-weight: 700;
+}}
+
+/* Subheaders (e.g., "Final Verdict") */
+h2 {{
+    color: {FLIPKART_TEXT};
+}}
+
+/* "Analyze Sentiment" button */
+.stButton > button {{
+    background-color: {FLIPKART_BLUE};
+    color: white;
+    border: none;
+    border-radius: 2px;
+    padding: 12px 28px;
+    font-weight: 700;
+    font-size: 16px;
+}}
+.stButton > button:hover {{
+    background-color: #1a5bb9; /* A darker blue for hover */
+    color: white;
+    border: none;
+}}
+
+/* Text area */
+.stTextArea textarea {{
+    border: 1px solid #c2c2c2;
+    background-color: #ffffff;
+    font-family: 'Roboto', sans-serif;
+    border-radius: 2px;
+}}
+</style>
+""", unsafe_allow_html=True)
+# --- END OF STYLING CODE ---
+
+
+st.title("Flipkart Sentiment Analyzer")
 st.markdown("Paste in customer reviews (one review per line) to analyze overall sentiment.")
+
+# ==========================================
+# 4. MAIN LOGIC (No Change)
+# ==========================================
 
 # Only proceed if models were loaded successfully
 if model and vectorizer and le:
