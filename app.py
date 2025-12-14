@@ -134,8 +134,35 @@ def get_embedder():
 # 5. MAIN UI
 # ==========================================
 
-st.sidebar.title("Configuration")
-api_key = st.sidebar.text_input("Gemini API Key (Optional)", type="password")
+# --- Sidebar ---
+with st.sidebar:
+    st.title("🛍️ Flipkart AI")
+    
+    with st.expander("ℹ️ About the Project", expanded=True):
+        st.write("""
+        This project has been upgraded with **GenAI capabilities**!
+        
+        **New Features:**
+        - **ETL Pipeline**: Automatically cleans and processes raw review data.
+        - **Vector DB (FAISS)**: Stores reviews as embeddings for fast search.
+        - **RAG Engine**: Retrieves relevant reviews to answer your questions using an LLM.
+        """)
+        
+    with st.expander("🛠️ How it Works"):
+        st.write("""
+        1. **Upload**: You upload a CSV of reviews.
+        2. **Index**: The app chunks text and creates a FAISS index.
+        3. **Ask**: You ask a question (e.g., "Is the battery good?").
+        4. **Retrieve**: The app finds the top 3 related reviews.
+        5. **Answer**: Gemini (or Mock LLM) generates an answer based *only* on those reviews.
+        """)
+    
+    st.divider()
+    st.markdown("### 🔑 API Config")
+    api_key = st.text_input("Gemini API Key (Optional)", type="password", help="Leave empty to use Mock LLM.")
+    
+    st.divider()
+    st.info("Built with Streamlit, LangChain concepts, and FAISS.")
 
 st.title("🛍️ Flipkart Product Analysis AI")
 
