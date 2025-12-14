@@ -4,3 +4,7 @@ numpy
 scikit-learn
 nltk
 joblib
+sentence-transformers
+faiss-cpu
+google-generativeai
+python-dotenv
