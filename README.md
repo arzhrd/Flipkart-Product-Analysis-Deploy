@@ -1,123 +1,97 @@
-
-
-````markdown
-# 🛍️ Flipkart Customer Sentiment Analyzer
+# 🛍️ Flipkart Product Analysis AI (Sentiment + RAG)
 
 [![Python Version](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-App-red)](https://streamlit.io/)
-[![Scikit-learn](https://img.shields.io/badge/Scikit--learn-ML-orange)](https://scikit-learn.org/)
-[![NLTK](https://img.shields.io/badge/NLTK-NLP-blueviolet)](https://www.nltk.org/)
+[![RAG](https://img.shields.io/badge/GenAI-RAG-green)](https://en.wikipedia.org/wiki/Retrieval-augmented_generation)
+[![FAISS](https://img.shields.io/badge/VectorDB-FAISS-yellow)](https://github.com/facebookresearch/faiss)
 
-An interactive web application built with Streamlit that uses a pre-trained **Linear SVM model (89.5% accuracy)** to perform real-time sentiment analysis on customer reviews.
+An advanced AI application that combines **Sentiment Analysis** with **Retrieval-Augmented Generation (RAG)** to provide deep insights into Flipkart product reviews.
 
-This project analyzes user-provided text to classify sentiment as **Positive**, **Negative**, or **Neutral**, providing a clear "Happy / Not Happy" verdict and visual analytics.
+**Core Capabilities:**
+1.  **Sentiment Analyzer:** Instantly classifies reviews as Positive, Negative, or Neutral using a Linear SVM model.
+2.  **Chat with Data (RAG):** Allows users to **ask questions** about product reviews (e.g., "Why are customers unhappy with the battery?") and get AI-generated answers based on actual customer feedback.
 
 ---
-
-## 🚀 Live Application
-
-
-
-*This README is for the deployed Streamlit application. The original analysis notebook used to train the model on 200,000+ Flipkart reviews can be found in `flipkart_sentiment_analysis.ipynb`.*
 
 ## ✨ Key Features
 
-* **Real-Time Analysis:** Instantly classifies sentiment for one or more reviews.
-* **Simple Interface:** Users paste reviews (one per line) into a text box.
-* **Clear Verdict:** Provides a high-level "Happy," "Not Happy," or "Mixed" verdict.
-* **Visual Dashboard:** Displays a bar chart showing the breakdown of sentiments.
-* **Detailed Results:** Shows a data table with the original review and its predicted sentiment.
+### 1. Sentiment Analysis Engine
+*   **Real-Time Classification:** Validates 200,000+ review patterns to predict sentiment.
+*   **Visual Dashboard:** Bar charts and "Verdict" cards (Happy/Not Happy).
+*   **Preprocessing:** Custom NLTK pipeline for cleaning noise (HTML, URLs, Stopwords).
 
-## 🛠️ Technical Stack
-
-* **Backend & ML:** Python, Scikit-learn, Pandas, NLTK
-* **Frontend Web App:** Streamlit
-* **Model:** Linear SVM (Support Vector Machine)
-* **Feature Extraction:** TF-IDF (Term Frequency-Inverse Document Frequency)
-* **NLP Pipeline:** NLTK (Stopword removal, Snowball Stemmer)
-* **Deployment:** Streamlit Cloud (or local)
+### 2. RAG Chatbot (New!) 🤖
+*   **Talk to your Data:** Upload a CSV of reviews and ask questions in natural language.
+*   **Context-Aware:** The AI retrieves specific reviews relevant to your query to generate an accurate answer.
+*   **ETL Pipeline:** Automatically ingests, cleans, and chunks reviews.
+*   **Vector Search:** Uses **FAISS** for millisecond-latency similarity search.
 
 ---
 
-## ⚙️ How It Works: The ML Pipeline
+## 🛠️ Technical Stack
 
-The model at the heart of this app was trained on over 200,000 Flipkart product reviews.
+*   **Frontend:** Streamlit
+*   **Sentiment Model:** Scikit-learn (Linear SVM), TF-IDF
+*   **RAG Pipeline:**
+    *   **Embeddings:** `sentence-transformers/all-MiniLM-L6-v2`
+    *   **Vector DB:** FAISS (Facebook AI Similarity Search)
+    *   **LLM Integration:** Google Gemini API (or Mock LLM for testing)
+*   **Orchestration:** Python (Custom ETL & RAG classes)
 
-1.  **Text Cleaning (NLTK):**
-    * Converts text to lowercase.
-    * Removes all punctuation, URLs, and HTML tags.
-    * Removes common English **stopwords** (e.g., "the", "is", "a").
-    * Performs **stemming** (e.g., "running" -> "run") using `SnowballStemmer`.
+---
 
-2.  **Feature Extraction (TF-IDF):**
-    * The cleaned text is converted into a numerical matrix using **TF-IDF**.
-    * This technique scores words based on their frequency in a single review vs. their rarity across all reviews.
-    * The model was trained on **5,000** of the most important word features (including 1 and 2-word phrases).
+## ⚙️ How It Works
 
-3.  **Model Training (Linear SVM):**
-    * Several models were tested (Logistic Regression, Naive Bayes), but **Linear SVM** provided the best performance, achieving **89.5% accuracy** on the test dataset.
-    * The trained model, TF-IDF vectorizer, and label encoder are all saved as `.pkl` files and loaded by the Streamlit app to make live predictions.
-
-
+### The RAG Pipeline (Chat with Data)
+1.  **Ingest:** User uploads a CSV file.
+2.  **Embed:** The `Embedder` class converts reviews into 384-dimensional vectors.
+3.  **Index:** Vectors are stored in a **FAISS** index for efficient retrieval.
+4.  **Retrieve:** When you ask a question, the system finds the top 3 most relevant reviews.
+5.  **Generate:** A Generative AI model (Gemini) answers your question using those reviews as context.
 
 ---
 
 ## 🚦 Installation & Usage
 
-You can run this application on your local machine in just a few steps.
-
 ### 1. Clone the Repository
-
 ```bash
-git clone [https://github.com/your-username/flipkart-sentiment.git](https://github.com/your-username/flipkart-sentiment.git)
-cd flipkart-sentiment
-````
-
-### 2\. Create a Virtual Environment (Recommended)
-
-```bash
-# Windows
-python -m venv venv
-venv\Scripts\activate
-
-# macOS/Linux
-python3 -m venv venv
-source venv/bin/activate
+git clone https://github.com/arzhrd/Flipkart-Product-Analysis-Deploy.git
+cd Flipkart-Product-Analysis-Deploy
 ```
 
-### 3\. Install Requirements
-
-Make sure you have your 3 model files (`sentiment_model.pkl`, `tfidf_vectorizer.pkl`, `label_encoder.pkl`) in the root folder.
-
+### 2. Install Dependencies
 ```bash
+# Recommended: Create a virtual environment first
 pip install -r requirements.txt
 ```
 
-### 4\. Run the Streamlit App
-
+### 3. Run the App
 ```bash
 streamlit run app.py
 ```
 
-Your browser will automatically open to `http://localhost:8501` to display the app.
+### 4. Using the App
+*   **Sentiment Tab:** Paste text reviews to see if they are Positive or Negative.
+*   **Chat with Data Tab:**
+    1.  Upload a CSV file (e.g., the included `sample_reviews.csv`).
+    2.  Click **"Process & Build Index"**.
+    3.  (Optional) Enter a **Gemini API Key** in the sidebar for better answers.
+    4.  Ask questions like *"What is the build quality like?"*
 
------
+---
 
 ## 📁 File Structure
 
 ```
 .
-├── sentiment_model.pkl             # <-- The trained SVM model
-├── tfidf_vectorizer.pkl          # <-- The fitted TF-IDF vectorizer
-├── label_encoder.pkl             # <-- The fitted LabelEncoder
-|
-├── app.py                          # The main Streamlit application code
-├── requirements.txt                # Python libraries needed to run the app
-|
-├── flipkart_sentiment_analysis.ipynb # (Optional) Original notebook for training
-├── Dataset-SA.csv                  # (Optional) The raw dataset
-└── README.md                       # You are here!
-```
-
-```
+├── src/                        # <--- NEW: Core Logic
+│   ├── etl_pipeline.py         # Data loading & cleaning
+│   ├── vector_db.py            # FAISS index management
+│   └── rag_engine.py           # RAG orchestration & LLM wrapper
+├── tests/                      # Validation scripts
+├── app.py                      # Main Streamlit Dashboard
+├── requirements.txt            # Project dependencies
+├── sentiment_model.pkl         # Pre-trained Sentiment Model
+├── tfidf_vectorizer.pkl        # Pre-trained Vectorizer
+└── sample_reviews.csv          # Demo data
 ```
