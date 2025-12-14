@@ -112,10 +112,16 @@ def show_verdict(verdict_type, message, details):
 # 4. INITIALIZE RAG STATE
 # ==========================================
 
+# Define absolute paths for persistence
+DB_FAISS_PATH = os.path.join(os.path.dirname(__file__), 'faiss_index.bin')
+DB_META_PATH = os.path.join(os.path.dirname(__file__), 'faiss_metadata.pkl')
+
 if 'vector_store' not in st.session_state:
-    st.session_state.vector_store = VectorStore()
+    st.session_state.vector_store = VectorStore(index_path=DB_FAISS_PATH, metadata_path=DB_META_PATH)
     if st.session_state.vector_store.load_index():
-        st.toast("Index loaded successfully!", icon="✅")
+        st.toast("Index loaded from disk!", icon="✅")
+    else:
+        st.toast("No existing index found.", icon="ℹ️")
 
 if 'rag_pipeline' not in st.session_state:
     st.session_state.rag_pipeline = None
