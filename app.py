@@ -27,7 +27,7 @@ except ImportError as e:
 # ==========================================
 
 st.set_page_config(
-    page_title="Flipkart Review Analyzer",
+    page_title="Flipkart Review Analyzer(RAG)",
     page_icon="🛍️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -264,8 +264,12 @@ with tab2:
         if not query:
             st.warning("Please ask a question.")
         else:
+            # Check if index exists, if not, try to load from disk
             if not st.session_state.vector_store.index:
-                st.error("Index not empty. Please upload data first.")
+                st.session_state.vector_store.load_index()
+
+            if not st.session_state.vector_store.index:
+                st.error("Index is empty. Please upload and process data first.")
             else:
                 emb_model = get_embedder()
                 
