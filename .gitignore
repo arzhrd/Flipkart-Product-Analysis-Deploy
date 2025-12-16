@@ -1,0 +1,18 @@
+# Large files
+*.bin
+temp_reviews.csv
+# Keep the dataset if it's under 100MB, but faiss_index.bin is definitely out.
+# flipkart_product.csv is 29MB so it is okay.
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+venv/
+venv_fix/
+.env
+
+# Streamlit
+.streamlit/secrets.toml

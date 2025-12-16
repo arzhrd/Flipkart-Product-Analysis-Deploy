@@ -11,12 +11,18 @@ class DatasetLoader:
 
     def load(self):
         """Loads and returns the dataframe."""
-        try:
-            df = pd.read_csv(self.filepath)
-            return df
-        except Exception as e:
-            print(f"Error loading dataset: {e}")
-            return None
+        encodings = ['utf-8', 'utf-16', 'latin-1', 'cp1252']
+        for enc in encodings:
+            try:
+                df = pd.read_csv(self.filepath, encoding=enc)
+                print(f"Successfully loaded with {enc} encoding.")
+                return df
+            except Exception as e:
+                print(f"Failed to load with {enc}: {e}")
+                continue
+        
+        print("Failed to load dataset with supported encodings.")
+        return None
 
 class TextPreprocessor:
     """
@@ -43,10 +49,25 @@ class Embedder:
     def __init__(self, model_name='sentence-transformers/all-MiniLM-L6-v2'):
         self.model = SentenceTransformer(model_name)
 
-    def generate_embeddings(self, texts):
+    def generate_embeddings(self, texts, batch_size=32, progress_callback=None):
         """
-        Generates embeddings for a list of texts.
+        Generates embeddings for a list of texts with batching and progress callback.
         """
-        # Encode
-        embeddings = self.model.encode(texts, show_progress_bar=True)
-        return embeddings
+        import numpy as np
+        
+        all_embeddings = []
+        total = len(texts)
+        
+        for i in range(0, total, batch_size):
+            batch = texts[i : i + batch_size]
+            # Encode batch
+            batch_emb = self.model.encode(batch, show_progress_bar=False)
+            all_embeddings.append(batch_emb)
+            
+            # Update progress
+            if progress_callback:
+                progress_callback(min(i + batch_size, total), total)
+        
+        if all_embeddings:
+            return np.vstack(all_embeddings)
+        return np.array([])

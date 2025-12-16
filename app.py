@@ -11,6 +11,7 @@ from nltk.corpus import stopwords
 from nltk.stem import SnowballStemmer
 import os
 import sys
+import time
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
@@ -32,6 +33,140 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# ==========================================
+# CUSTOM CSS - FUTURISTIC THEME
+# ==========================================
+st.markdown("""
+<style>
+    /* Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Roboto:wght@300;400;700&display=swap');
+
+    :root {
+        --primary-color: #00f2ea; /* Neon Cyan */
+        --secondary-color: #ff0055; /* Neon Pink/Red */
+        --bg-color: #0b0c10;
+        --card-bg: rgba(31, 40, 51, 0.7);
+        --text-color: #c5c6c7;
+        --heading-font: 'Orbitron', sans-serif;
+        --body-font: 'Roboto', sans-serif;
+    }
+
+    /* Global Styles */
+    .stApp {
+        background-color: var(--bg-color);
+        background-image: 
+            radial-gradient(circle at 10% 20%, rgba(0, 242, 234, 0.1) 0%, transparent 20%),
+            radial-gradient(circle at 90% 80%, rgba(255, 0, 85, 0.1) 0%, transparent 20%);
+        font-family: var(--body-font);
+        color: var(--text-color);
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        font-family: var(--heading-font);
+        color: #ffffff;
+        text-shadow: 0 0 10px rgba(0, 242, 234, 0.3);
+    }
+
+    /* Sidebar - Glassmorphism */
+    section[data-testid="stSidebar"] {
+        background-color: rgba(11, 12, 16, 0.85);
+        backdrop-filter: blur(10px);
+        border-right: 1px solid rgba(0, 242, 234, 0.2);
+    }
+    
+    div[data-testid="stSidebarNav"] {
+        background-image: none;
+    }
+
+    /* Buttons */
+    .stButton > button {
+        background: transparent;
+        border: 1px solid var(--primary-color);
+        color: var(--primary-color);
+        border-radius: 5px;
+        font-family: var(--heading-font);
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .stButton > button:hover {
+        background: var(--primary-color);
+        color: #000;
+        box-shadow: 0 0 15px var(--primary-color);
+        border-color: var(--primary-color);
+    }
+    
+    /* Primary Button (Use specific selector if cleaner, but logic remains same) */
+    /* Streamlit's primary button has different class usually, but global override works well for theme */
+
+    /* Inputs */
+    .stTextInput > div > div > input, .stTextArea > div > div > textarea {
+        background-color: rgba(255, 255, 255, 0.05);
+        color: #fff;
+        border: 1px solid rgba(0, 242, 234, 0.3);
+        border-radius: 5px;
+        font-family: var(--body-font);
+    }
+    
+    .stTextInput > div > div > input:focus, .stTextArea > div > div > textarea:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 10px rgba(0, 242, 234, 0.2);
+    }
+
+    /* Cards / Expanders */
+    .streamlit-expanderHeader {
+        background-color: var(--card-bg);
+        border-radius: 5px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        font-family: var(--heading-font);
+    }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+        background-color: transparent;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        background-color: transparent;
+        border: 1px solid rgba(255,255,255,0.2);
+        color: #aaa;
+        border-radius: 5px;
+        font-family: var(--heading-font);
+    }
+
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        background-color: rgba(0, 242, 234, 0.1);
+        border: 1px solid var(--primary-color);
+        color: var(--primary-color);
+    }
+
+    /* Verdict Card Custom Class */
+    .verdict-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(5px);
+        border-radius: 10px;
+        padding: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .verdict-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: var(--border-color);
+        box-shadow: 0 0 10px var(--border-color);
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # ==========================================
 # 2. SETUP & MODEL LOADING (Sentiment)
@@ -83,26 +218,20 @@ def clean_sentiment(text):
 def show_verdict(verdict_type, message, details):
     if verdict_type == "Happy":
         icon = "✅"
-        border_color = "#2ecc71"
+        color = "#00f2ea" # Neon Cyan
     elif verdict_type == "Not Happy":
         icon = "❌"
-        border_color = "#e74c3c"
+        color = "#ff0055" # Neon Red
     else:
         icon = "🤷"
-        border_color = "#95a5a6"
-        
+        color = "#f39c12" # Neon Orange/Yellow vibe
+
     st.markdown(
         f"""
-        <div style="
-            border-left: 10px solid {border_color};
-            padding: 20px;
-            background-color: #f8f9fa;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        ">
-            <h3 style="margin-top: 0;">{icon} Overall: {verdict_type}</h3>
+        <div class="verdict-card" style="--border-color: {color};">
+            <h3 style="margin-top: 0; color: {color}; text-shadow: 0 0 5px {color};">{icon} Overall: {verdict_type}</h3>
             <p style="font-size: 1.1em; margin-bottom: 0;">{message}</p>
-            <p style="color: #555; margin-top: 10px; margin-bottom: 0;">{details}</p>
+            <p style="color: #888; margin-top: 10px; margin-bottom: 0; font-family: 'Roboto Mono', monospace;">{details}</p>
         </div>
         """,
         unsafe_allow_html=True
@@ -178,6 +307,9 @@ tab1, tab2 = st.tabs(["🙂 Sentiment Analysis", "🤖 Chat with Data"])
 with tab1:
     st.header("Customer Customer Sentiment")
     
+    st.markdown("[![View Code on GitHub](https://img.shields.io/badge/View%20Code-GitHub-181717?style=for-the-badge&logo=github)](https://github.com/arzhrd/Flipkart-Product-Analysis-Deploy)")
+    st.link_button("View Code on GitHub", "https://github.com/arzhrd/Flipkart-Product-Analysis-Deploy")
+    
     if sentiment_model and sentiment_vectorizer and sentiment_le:
         user_reviews = st.text_area("Paste reviews here:", height=200)
         
@@ -201,15 +333,16 @@ with tab1:
                     counts = pd.Series(predictions).value_counts()
                     pos = counts.get("Positive", 0)
                     neg = counts.get("Negative", 0)
+                    neu = counts.get("Neutral", 0)
                     
                     c1, c2 = st.columns([1.5, 1])
                     with c1:
                          if pos > (neg * 1.5):
-                            show_verdict("Happy", "Consumers are generally happy.", f"{pos} vs {neg}")
+                            show_verdict("Happy", "Consumers are generally happy.", f"{pos} Pos vs {neg} Neg ({neu} Neu)")
                          elif neg > (pos * 1.5):
-                            show_verdict("Not Happy", "Consumers are generally unhappy.", f"{pos} vs {neg}")
+                            show_verdict("Not Happy", "Consumers are generally unhappy.", f"{pos} Pos vs {neg} Neg ({neu} Neu)")
                          else:
-                            show_verdict("Mixed", "Consumer sentiment is mixed.", f"{pos} vs {neg}")
+                            show_verdict("Mixed", "Consumer sentiment is mixed.", f"{pos} Pos vs {neg} Neg ({neu} Neu)")
                     with c2:
                          st.bar_chart(counts)
                     
@@ -223,8 +356,12 @@ with tab1:
 # --- TAB 2: RAG ---
 with tab2:
     st.header("Chat with Reviews (RAG)")
+
+    st.warning("⚠️ **Note:** This app runs on Streamlit Community Cloud, which has resource limits. Please upload smaller CSV files for best results. For analyzing large datasets, run this app locally.")
     
-    # Upload Section
+    st.markdown("[![View Code on GitHub](https://img.shields.io/badge/View%20Code-GitHub-181717?style=for-the-badge&logo=github)](https://github.com/arzhrd/Flipkart-Product-Analysis-Deploy)")
+    st.link_button("View Code on GitHub", "https://github.com/arzhrd/Flipkart-Product-Analysis-Deploy")
+
     with st.expander("📂 Upload & Process Data", expanded=False):
         uploaded_file = st.file_uploader("Upload Reviews CSV", type=["csv"])
         if uploaded_file and st.button("Process & Build Index"):
@@ -254,13 +391,33 @@ with tab2:
                     
                     # Embed & Index
                     emb_model = get_embedder()
-                    embeddings = emb_model.generate_embeddings(processed_texts)
+                    
+                    # Progress Bar
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    start_time = time.time()
+
+                    def update_progress(current, total):
+                        frac = current / total
+                        progress_bar.progress(frac)
+                        elapsed = time.time() - start_time
+                        if frac > 0:
+                            rate = elapsed / frac
+                            remaining = rate - elapsed
+                            status_text.caption(f"⏳ Processing: {int(frac*100)}% | Est. Time Left: {remaining:.1f}s")
+
+                    embeddings = emb_model.generate_embeddings(processed_texts, progress_callback=update_progress)
+                    
+                    # Cleanup
+                    progress_bar.empty()
+                    status_text.empty()
                     
                     st.session_state.vector_store.build_index(embeddings, processed_texts)
                     st.session_state.vector_store.save_index()
                     st.success(f"Indexed {len(processed_texts)} reviews successfully!")
             except Exception as e:
-                st.error(f"Error processing file: {e}")
+                import traceback
+                st.error(f"Error processing file: {e}\n\n{traceback.format_exc()}")
 
     # Chat Section
     st.divider()
